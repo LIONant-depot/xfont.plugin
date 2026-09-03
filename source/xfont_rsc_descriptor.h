@@ -53,11 +53,20 @@ namespace xfont_rsc
     // each resource plugin stays a self-contained DLL/exe. The compiler maps this to the real
     // xtexture_rsc::compression_format when constructing the virtual texture descriptor - same
     // pattern the old CompressAtlas/CompressSDF bools already used.
-    enum class bitmap_compression : std::uint8_t { UNCOMPRESSED, BC1_ALPHA, BC3_ALPHA };
+    //
+    // Only two options, not three: the baked atlas is genuinely single-channel (coverage only - the
+    // render-time push-constant tint supplies color, see E28_msdf_frag.glsl's own BITMAP branch,
+    // which never reads texel.rgb at all), so there's no more RGB-vs-alpha bit-budget trade-off for
+    // separate BC1_ALPHA (4bpp, 1-bit punch-through)/BC3_ALPHA (8bpp, full alpha) choices to make -
+    // R_BC4 alone matches BC3_ALPHA's own alpha precision at BC1_ALPHA's own 4bpp cost, since it's
+    // the exact same per-block alpha encoding either of those used, just without a paired-but-unread
+    // RGB block alongside it. This USED TO be UNCOMPRESSED/BC1_ALPHA/BC3_ALPHA (RGBA_UNCOMPRESSED/
+    // RGBA_BC1_A1/RGBA_BC3_A8) - an already-saved descriptor with one of the removed values will just
+    // fall back to this enum's own default on next load, not fail to load.
+    enum class bitmap_compression : std::uint8_t { UNCOMPRESSED, COMPRESSED };
     static constexpr auto bitmap_compression_v = std::array
-    { xproperty::settings::enum_item("UNCOMPRESSED", bitmap_compression::UNCOMPRESSED, "32bpp, full precision. Largest, use for debugging or if compression artifacts are ever visible.")
-    , xproperty::settings::enum_item("BC1_ALPHA",    bitmap_compression::BC1_ALPHA,    "4bpp, 1-bit alpha - smallest, but AA edges will look hard/aliased (no partial coverage).")
-    , xproperty::settings::enum_item("BC3_ALPHA",    bitmap_compression::BC3_ALPHA,    "8bpp, full 8-bit alpha - the right default for real antialiasing coverage.")
+    { xproperty::settings::enum_item("UNCOMPRESSED", bitmap_compression::UNCOMPRESSED, "8bpp, single channel, full precision - no compression at all. Largest, use for debugging or if compression artifacts are ever visible.")
+    , xproperty::settings::enum_item("COMPRESSED",   bitmap_compression::COMPRESSED,   "4bpp, single-channel (R_BC4) compressed alpha coverage - the right default; half the size of the old RGBA-based compression at the same alpha precision, since only the alpha channel is ever sampled at render time.")
     };
 
     // A manual addition to the baked charset - independent of whatever the sample text files
@@ -109,7 +118,7 @@ namespace xfont_rsc
 
         // BITMAP only.
         std::vector<int>    m_BitmapSizes       { 16 };  // point sizes (px) to bake - all packed into one shared atlas
-        bitmap_compression  m_BitmapCompression { bitmap_compression::BC3_ALPHA };
+        bitmap_compression  m_BitmapCompression { bitmap_compression::COMPRESSED };
 
         void SetupFromSource(std::string_view) override {}
 
@@ -200,7 +209,7 @@ namespace xfont_rsc
                 , member_enum_span<bitmap_compression_v>
                 , member_dynamic_flags<+[](const descriptor& O)
                 { xproperty::flags::type F{}; F.m_bDontShow = O.m_OutputType != output_type::BITMAP; return F; }>
-                , member_help<"Compression format for the baked bitmap atlas - an ordinary image, so ordinary compression is fine. Pick one with real alpha (BC3_ALPHA) if you want smooth antialiased edges.">>
+                , member_help<"Compression format for the baked bitmap atlas - a single-channel coverage image (color comes from the render-time tint, not the texture), so COMPRESSED (R_BC4) is the right default; switch to UNCOMPRESSED only if compression artifacts are ever visible.">>
             >
         )
     };

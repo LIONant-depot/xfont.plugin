@@ -353,9 +353,15 @@ struct implementation final : xfont_compiler::instance
 
             displayProgressBar("Compositing atlas", 0.55f);
 
-            // White RGB (color is applied at render time via push-constant tint, see the shader) -
-            // coverage lives in alpha.
-            std::vector<unsigned char> TexturePixels(static_cast<std::size_t>(AtlasWidth) * AtlasHeight * 4, 0);
+            // Single channel, coverage only - color is applied at render time via push-constant tint
+            // (see E28_msdf_frag.glsl's own BITMAP branch, which never reads texel.rgb at all). This
+            // used to be a 4-channel RGBA buffer with a constant white RGB baked into every texel -
+            // harmless in itself, but it meant the compressed texture (RGBA_BC3_A8/BC1_ALPHA) spent
+            // half its bits (the BC1-encoded RGB block) compressing data nothing ever samples. A
+            // single channel lets the texture compiler use a real single-channel format (R_BC4) at
+            // half R_BC3_A8's size for the exact same alpha precision, or R_UNCOMPRESSED at the same
+            // size as the old RGBA_UNCOMPRESSED choice would have needed 4x for.
+            std::vector<unsigned char> TexturePixels(static_cast<std::size_t>(AtlasWidth) * AtlasHeight, 0);
             for (std::size_t i = 0; i < RawGlyphs.size(); ++i)
             {
                 auto& RG = RawGlyphs[i];
@@ -364,9 +370,7 @@ struct implementation final : xfont_compiler::instance
                 for (int y = 0; y < RG.m_H; ++y)
                     for (int x = 0; x < RG.m_W; ++x)
                     {
-                        auto* pOut = &TexturePixels[(static_cast<std::size_t>(R.y + y) * AtlasWidth + static_cast<std::size_t>(R.x + x)) * 4];
-                        pOut[0] = 255; pOut[1] = 255; pOut[2] = 255;
-                        pOut[3] = RG.m_Coverage[static_cast<std::size_t>(y) * RG.m_W + x];
+                        TexturePixels[static_cast<std::size_t>(R.y + y) * AtlasWidth + static_cast<std::size_t>(R.x + x)] = RG.m_Coverage[static_cast<std::size_t>(y) * RG.m_W + x];
                     }
             }
 
@@ -388,16 +392,19 @@ struct implementation final : xfont_compiler::instance
             const auto DescDirRelToProject = DescDir.substr(m_ProjectPaths.m_Project.length() + 1);
             const auto AssetRelPath        = std::format(L"{}/bitmap.png", DescDirRelToProject);
             const auto AssetFullPath       = std::format(L"{}/{}", m_ProjectPaths.m_Project, AssetRelPath);
-            WritePng(AssetFullPath, AtlasWidth, AtlasHeight, 4, TexturePixels);
+            WritePng(AssetFullPath, AtlasWidth, AtlasHeight, 1, TexturePixels);
 
             {
                 xtexture_rsc::descriptor TexDesc;
-                TexDesc.m_UsageType     = xtexture_rsc::usage_type::COLOR_AND_ALPHA;
+                TexDesc.m_UsageType     = xtexture_rsc::usage_type::INTENSITY;
                 TexDesc.m_InputVariant  = xtexture_rsc::single_input{ AssetRelPath };
+                // R_BC4 (4bpp) at the same alpha precision as the old RGBA_BC3_A8 (8bpp) - the RGB
+                // block BC3 also compressed was never sampled (see TexturePixels' own comment above).
+                // R_UNCOMPRESSED (8bpp, single channel) replaces the old RGBA_UNCOMPRESSED (32bpp) the
+                // same way, for whenever compression artifacts on the coverage data are visible.
                 TexDesc.m_Compression   =
-                      m_Descriptor.m_BitmapCompression == xfont_rsc::bitmap_compression::BC3_ALPHA ? xtexture_rsc::compression_format::RGBA_BC3_A8
-                    : m_Descriptor.m_BitmapCompression == xfont_rsc::bitmap_compression::BC1_ALPHA ? xtexture_rsc::compression_format::RGBA_BC1_A1
-                    : xtexture_rsc::compression_format::RGBA_UNCOMPRESSED;
+                      m_Descriptor.m_BitmapCompression == xfont_rsc::bitmap_compression::COMPRESSED ? xtexture_rsc::compression_format::R_BC4
+                    : xtexture_rsc::compression_format::R_UNCOMPRESSED;
                 TexDesc.m_bSRGB          = false; // ordinary coverage data, not display color - runtime tint applies its own color
                 TexDesc.m_bGenerateMips = false;  // a bitmap font isn't meant to be minified - each baked size IS its own "mip"
                 TexDesc.m_Quality        = 1.0f;

@@ -1,0 +1,10 @@
+################################################################################
+# Mirrors xtexture.plugin's own .gitignore - same reasons (fetched deps, generated build files)
+################################################################################
+
+dependencies
+
+build/xfont_compiler.vs2022/*
+build/xfont_compiler.vs2022/xfont_compiler.sln
+build/xfont_compiler.vs2022/xfont_compiler.vcxproj
+build/xfont_compiler.vs2022/xfont_compiler.vcxproj.filters

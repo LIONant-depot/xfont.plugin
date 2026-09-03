@@ -1,0 +1,16 @@
+
+// New Types
+< s32:d u32:g s16:C u16:H s8:c u8:h f32:f f64:F string:s wstring:S u64:G s64:D bool:c enum:s >
+
+[ xProperties : 9 ]
+{ Name:s                            Value:?                   }
+//--------------------------------  -------------------------
+  "PipelinePlugin/TypeName"                  ;string "Font"
+  "PipelinePlugin/FileExtension"             ;wstring "xfont"
+  "PipelinePlugin/TypeGUID/Value"            ;u64    #3285CB58BB79E1AD
+  "PipelinePlugin/Icon"                      ;string "\xEE\xA3\x92"
+  "PipelinePlugin/Details/RunAfter[]"        ;s64    1
+  "PipelinePlugin/Details/RunAfter[G:0]/Value" ;u64    #6701D481518BD833
+  "PipelinePlugin/Details/CompilationScript" ;wstring "Cache\\Plugins\\xfont.plugin\\Build\\CreateAndBuildProject.bat"
+  "PipelinePlugin/Details/DebugCompiler"     ;wstring "Cache\\Plugins\\xfont.plugin\\Build\\xfont_compiler.vs2022\\Debug\\xfont_compiler.exe"
+  "PipelinePlugin/Details/ReleaseCompiler"   ;wstring "Cache\\Plugins\\xfont.plugin\\Build\\xfont_compiler.vs2022\\Release\\xfont_compiler.exe"

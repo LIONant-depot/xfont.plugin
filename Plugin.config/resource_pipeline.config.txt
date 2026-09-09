@@ -2,13 +2,14 @@
 // New Types
 < s32:d u32:g s16:C u16:H s8:c u8:h f32:f f64:F string:s wstring:S u64:G s64:D bool:c enum:s >
 
-[ xProperties : 9 ]
+[ xProperties : 10 ]
 { Name:s                            Value:?                   }
 //--------------------------------  -------------------------
   "PipelinePlugin/TypeName"                  ;string "Font"
   "PipelinePlugin/FileExtension"             ;wstring "xfont"
   "PipelinePlugin/TypeGUID/Value"            ;u64    #3285CB58BB79E1AD
-  "PipelinePlugin/IconPath"                      ;wstring "icon.png"
+  "PipelinePlugin/IconPaths[]"                      ;s64    1
+  "PipelinePlugin/IconPaths[G:0]"                      ;wstring "icon.png"
   "PipelinePlugin/Details/RunAfter[]"        ;s64    1
   "PipelinePlugin/Details/RunAfter[G:0]/Value" ;u64    #6701D481518BD833
   "PipelinePlugin/Details/CompilationScript" ;wstring "Cache\\Plugins\\xfont.plugin\\Build\\CreateAndBuildProject.bat"

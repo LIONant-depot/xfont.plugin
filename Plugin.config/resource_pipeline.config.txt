@@ -8,7 +8,7 @@
   "PipelinePlugin/TypeName"                  ;string "Font"
   "PipelinePlugin/FileExtension"             ;wstring "xfont"
   "PipelinePlugin/TypeGUID/Value"            ;u64    #3285CB58BB79E1AD
-  "PipelinePlugin/Icon"                      ;string "\xEE\xA3\x92"
+  "PipelinePlugin/IconPath"                      ;wstring "icon.png"
   "PipelinePlugin/Details/RunAfter[]"        ;s64    1
   "PipelinePlugin/Details/RunAfter[G:0]/Value" ;u64    #6701D481518BD833
   "PipelinePlugin/Details/CompilationScript" ;wstring "Cache\\Plugins\\xfont.plugin\\Build\\CreateAndBuildProject.bat"

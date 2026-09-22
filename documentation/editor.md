@@ -39,6 +39,7 @@ Run as `<resource name>\<Command>` (see `list`) or `ResourceEditorCommand -Asset
 |---|---|
 | `ListProperties [-Filter text]` | every descriptor property with its value: the paths `SetProperty` takes |
 | `SetProperty -Path -Value [-Before]` | one descriptor property (undoable) |
+| `ListOp -Path -Op Insert\|Delete\|Move -Index n [-ToIndex n]` | inserts, deletes or moves an element in the middle of a 1D array property (undoable); ordinal keys only |
 | `ListPreview [-Filter text]`, `SetPreview -Path -Value` | the live text settings (view state: not undoable, never dirties the font) |
 | `FontInfo` | ready / reloading / not compiled, and for a ready font: output type, glyphs, kerning pairs, metrics, atlas size |
 | `Save`, `Compile` | save the descriptor; validate, save and queue the compile |

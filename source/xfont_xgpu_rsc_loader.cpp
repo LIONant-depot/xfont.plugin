@@ -15,11 +15,15 @@ xresource::loader< xrsc::font_type_guid_v >::data_type* xresource::loader< xrsc:
 {
     std::wstring Path = Mgr.getResourcePath(GUID, type_name_v);
 
+    // A missing/not-yet-compiled resource is an expected, recoverable case (same reasoning as
+    // xtexture_xgpu_rsc_loader.cpp's identical fix) - every caller already handles getResource()
+    // returning null, so return null instead of asserting-then-dereferencing a null pFont below (a
+    // crash in a debug build, silent undefined behaviour in Release).
     xfont_rsc::font* pFont = nullptr;
     xserializer::stream Stream;
     if (auto Err = Stream.Load(Path, pFont); Err)
     {
-        assert(false);
+        return nullptr;
     }
 
     auto* pRt = new xfont::rt{};

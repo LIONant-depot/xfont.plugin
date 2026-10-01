@@ -354,7 +354,7 @@ struct implementation final : xfont_compiler::instance
             displayProgressBar("Compositing atlas", 0.55f);
 
             // Single channel, coverage only - color is applied at render time via push-constant tint
-            // (see E28_msdf_frag.glsl's own BITMAP branch, which never reads texel.rgb at all). This
+            // (see xfont_msdf_frag.glsl's own BITMAP branch, which never reads texel.rgb at all). This
             // used to be a 4-channel RGBA buffer with a constant white RGB baked into every texel -
             // harmless in itself, but it meant the compressed texture (RGBA_BC3_A8/BC1_ALPHA) spent
             // half its bits (the BC1-encoded RGB block) compressing data nothing ever samples. A

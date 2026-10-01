@@ -55,7 +55,7 @@ namespace xfont_rsc
     // pattern the old CompressAtlas/CompressSDF bools already used.
     //
     // Only two options, not three: the baked atlas is genuinely single-channel (coverage only - the
-    // render-time push-constant tint supplies color, see E28_msdf_frag.glsl's own BITMAP branch,
+    // render-time push-constant tint supplies color, see xfont_msdf_frag.glsl's own BITMAP branch,
     // which never reads texel.rgb at all), so there's no more RGB-vs-alpha bit-budget trade-off for
     // separate BC1_ALPHA (4bpp, 1-bit punch-through)/BC3_ALPHA (8bpp, full alpha) choices to make -
     // R_BC4 alone matches BC3_ALPHA's own alpha precision at BC1_ALPHA's own 4bpp cost, since it's

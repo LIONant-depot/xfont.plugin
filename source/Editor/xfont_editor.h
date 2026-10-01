@@ -8,7 +8,7 @@
 #include "source/Tools/Editor/xeditor_descriptor_editor.h"
 #include "source/Tools/Editor/xeditor_camera.h"
 #include "source/Examples/E05_Textures/E05_BitmapInspector.h"
-#include "dependencies/xresource_pipeline_v2/source/editor/E10_Resources.h"
+#include "dependencies/xresource_pipeline_v2/source/editor/xresource_editor_resources.h"
 #include "plugins/xfont.plugin/source/Editor/xfont_editor_preview.h"
 #include "plugins/xtexture.plugin/source/xtexture_xgpu_rsc_loader.h"
 #include "plugins/xfont.plugin/source/xfont_xgpu_rsc_loader.cpp"        // the resource loader: compiled once, in the host's translation unit
@@ -83,7 +83,7 @@ namespace xfont_editor
         int                             m_ResolvedFrame = -1;
         std::chrono::steady_clock::time_point m_ReloadUntil{};      // the atlas is not touched again before this, after a compile: it is rebuilt behind our back
 
-        session(xresource::full_guid Guid, e10::library::guid LibraryGuid, xgpu::device* pDevice) noexcept
+        session(xresource::full_guid Guid, xresource_editor::library::guid LibraryGuid, xgpu::device* pDevice) noexcept
             : descriptor_editor("Font", Guid, LibraryGuid, pDevice)
             , m_SetPreview(m_Undo, m_Settings), m_ListPreview(m_Undo, m_Settings), m_SetView(m_Undo, { { "atlas", { &m_AtlasView.m_Zoom, &m_AtlasView.m_Pan.m_X, &m_AtlasView.m_Pan.m_Y } }, { "live", { &m_LiveView.m_Zoom, &m_LiveView.m_Pan.m_X, &m_LiveView.m_Pan.m_Y } } }), m_FontInfo(m_Undo, *this)
         {
@@ -96,13 +96,13 @@ namespace xfont_editor
             AddPanel("Rendering Settings", dock::bottom,      [this] { m_Settings.m_CurrentFontOutputType = (m_pFont && m_pFont->m_pFont) ? m_pFont->m_pFont->m_OutputType : xfont_rsc::output_type::MTSDF; m_SettingsInspector.Show(); });
 
             m_bText = pDevice && m_Text.Create(*pDevice) == 0;
-            e10::g_LibMgr.m_OnCompilationState.Register<&session::OnTextureCompilation>(*this);
+            xresource_editor::g_LibMgr.m_OnCompilationState.Register<&session::OnTextureCompilation>(*this);
             Reload();
         }
 
         ~session() noexcept override
         {
-            e10::g_LibMgr.m_OnCompilationState.RemoveDelegates(this);
+            xresource_editor::g_LibMgr.m_OnCompilationState.RemoveDelegates(this);
             xresource::g_Mgr.ReleaseRef(m_Ref);
             if (!m_pDevice) return;
             if (m_Text.m_SceneTexture.m_Private) xgpu::tools::imgui::ClearTexture(m_Text.m_SceneTexture);
@@ -124,15 +124,15 @@ namespace xfont_editor
         }
 
         // The atlas is a resource of its own, compiled after the font (and not at all when nothing changed): its compile is followed the same way.
-        void OnTextureCompilation(e10::library_mgr&, e10::library::guid, xresource::full_guid Compiling, std::shared_ptr<e10::compilation::historical_entry::log>& Log) noexcept
+        void OnTextureCompilation(xresource_editor::library_mgr&, xresource_editor::library::guid, xresource::full_guid Compiling, std::shared_ptr<xresource_editor::compilation::historical_entry::log>& Log) noexcept
         {
             if (!Log || Compiling.m_Instance.m_Value != m_TextureInstance.load() || Compiling.m_Type != xrsc::texture_type_guid_v) return;
-            e10::compilation::historical_entry::result Result;
+            xresource_editor::compilation::historical_entry::result Result;
             {
                 xcontainer::lock::scope Lock(*Log);
                 Result = Log->get().m_Result;
             }
-            using result = e10::compilation::historical_entry::result;
+            using result = xresource_editor::compilation::historical_entry::result;
             if (Result == result::COMPILING || Result == result::COMPILING_WARNINGS)
             {
                 SetCompileStartTime(std::filesystem::file_time_type::clock::now());
@@ -193,7 +193,7 @@ namespace xfont_editor
             m_ResolvedFrame = -1;
             if (!m_Document.isLoaded()) return;
 
-            e10::g_LibMgr.getNodeInfo(m_Document.m_LibraryGuid, m_Document.m_Guid, [&](e10::library_db::info_node& Node)
+            xresource_editor::g_LibMgr.getNodeInfo(m_Document.m_LibraryGuid, m_Document.m_Guid, [&](xresource_editor::library_db::info_node& Node)
             {
                 if (!Node.m_Dependencies.m_VirtualResources.empty()) m_TextureGuid = Node.m_Dependencies.m_VirtualResources[0];     // a font emits exactly one
             });
@@ -278,7 +278,7 @@ namespace xfont_editor
             if (!ShowState()) return;
             auto* pHost   = xeditor::host::current();
             auto* pWindow = pHost ? pHost->find<xgpu::window>() : nullptr;
-            if (!m_bText || !pWindow || !m_pDevice) { ImGui::TextDisabled("Live text needs a GPU device (open from E29)."); return; }
+            if (!m_bText || !pWindow || !m_pDevice) { ImGui::TextDisabled("Live text needs a GPU device (open from the editor)."); return; }
 
             const auto& Font = *m_pFont->m_pFont;
             ImGui::Text("Glyphs: %u   Kern pairs: %u", Font.m_nGlyphs, Font.m_nKernPairs);
@@ -371,7 +371,7 @@ namespace xfont_editor
 
     inline const xeditor::auto_register_resource_editor g_Registration
     { xrsc::font_type_guid_v
-    , [](xresource::full_guid Guid, e10::library::guid LibraryGuid, xgpu::device* pDevice) -> std::unique_ptr<xeditor::resource_editor>
+    , [](xresource::full_guid Guid, xresource_editor::library::guid LibraryGuid, xgpu::device* pDevice) -> std::unique_ptr<xeditor::resource_editor>
       { return std::make_unique<session>(Guid, LibraryGuid, pDevice); }
     };
 }

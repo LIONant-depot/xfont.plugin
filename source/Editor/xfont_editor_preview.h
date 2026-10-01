@@ -32,7 +32,7 @@ namespace xfont_editor
 // typed `unsigned int` by the language, not `int`. std::array{...}'s CTAD locks onto the FIRST
 // literal's type (`int`, since every header starts with the small 0x07230203 magic number), so the
 // moment a later word needs the sign bit, list-initialization fails as a narrowing conversion. This
-// bit me for real adding E28_msdf_frag.glsl's kBevelLightDir = vec2(-1.0, -0.5). uint32_t sidesteps
+// bit me for real adding xfont_msdf_frag.glsl's kBevelLightDir = vec2(-1.0, -0.5). uint32_t sidesteps
 // it entirely: every 32-bit literal - whichever of int/unsigned int the compiler picked for it -
 // converts to uint32_t without narrowing, since the VALUE always fits.
 inline std::span<const std::int32_t> AsShaderSpan(const std::uint32_t* pWords, std::size_t Count) noexcept
@@ -43,20 +43,20 @@ inline std::span<const std::int32_t> AsShaderSpan(const std::uint32_t* pWords, s
 }
 inline constexpr std::uint32_t g_MsdfVertSPVWords[] =
 {
-    #include "E28_msdf_vert.h"
+    #include "xfont_msdf_vert.h"
 };
 inline constexpr std::uint32_t g_MsdfFragSPVWords[] =
 {
-    #include "E28_msdf_frag.h"
+    #include "xfont_msdf_frag.h"
 };
-// Dedicated shader pair for the glyph-bounds debug overlay - see E28_wire_vert.glsl's own comment.
+// Dedicated shader pair for the glyph-bounds debug overlay - see xfont_wire_vert.glsl's own comment.
 inline constexpr std::uint32_t g_WireVertSPVWords[] =
 {
-    #include "E28_wire_vert.h"
+    #include "xfont_wire_vert.h"
 };
 inline constexpr std::uint32_t g_WireFragSPVWords[] =
 {
-    #include "E28_wire_frag.h"
+    #include "xfont_wire_frag.h"
 };
 
     //---------------------------------------------------------------------------
@@ -227,8 +227,8 @@ inline constexpr std::uint32_t g_WireFragSPVWords[] =
         float       m_BevelWeight     { 0.06f };  // em-equivalent units (converted to screen px the same way OutlineWidth is)
         bool        m_bGlow           { false };  // soft colored halo fading outward from the edge - see https://www.redblobgames.com/articles/sdf-fonts/'s own "glow" section; MTSDF/SDF only, no-op on BITMAP (same reasoning as Bevel/Outline - no distance field outside the glyph to fade from)
         float       m_GlowRadius      { 0.15f };  // em-equivalent units (converted to screen px the same way OutlineWidth is) - how far outward the halo reaches before fading to nothing
-        float       m_GlowIntensity   { 0.8f };   // 0-1 opacity multiplier; color itself is a shader constant (kGlowColor in E28_msdf_frag.glsl), same precedent as the shadow's own fixed color
-        bool        m_bItalic          { false }; // synthetic italic - vertex-level shear (real skew, not a UV trick), see E28_msdf_vert.glsl
+        float       m_GlowIntensity   { 0.8f };   // 0-1 opacity multiplier; color itself is a shader constant (kGlowColor in xfont_msdf_frag.glsl), same precedent as the shadow's own fixed color
+        bool        m_bItalic          { false }; // synthetic italic - vertex-level shear (real skew, not a UV trick), see xfont_msdf_vert.glsl
         float       m_ItalicShear      { 0.2f };  // slope (dx per unit y), dimensionless
         bool        m_bShowGlyphBounds{ false };  // debug: draws the real glyph mesh in red wireframe, on top of the rendered text
 
@@ -241,7 +241,7 @@ inline constexpr std::uint32_t g_WireFragSPVWords[] =
         , obj_scope<"Effects"
             // ShowOutline/Bold/Bevel all need a real distance field to threshold/shade from - BITMAP
             // is plain rasterized alpha coverage, so the shader's own BITMAP branch returns before any
-            // of them would apply (see E28_msdf_frag.glsl) - hidden here to match, rather than leaving
+            // of them would apply (see xfont_msdf_frag.glsl) - hidden here to match, rather than leaving
             // a toggle that silently does nothing. Shadow and Italic DO still work on BITMAP (shadow
             // just resamples the same real alpha coverage translated; italic is a pure vertex shear) -
             // left visible/functional for it.
@@ -453,7 +453,7 @@ inline constexpr std::uint32_t g_WireFragSPVWords[] =
         float m_X, m_Y, m_U, m_V;
     };
 
-    // Layout must match E28_msdf_vert.glsl/E28_msdf_frag.glsl's own PC block exactly (field order,
+    // Layout must match xfont_msdf_vert.glsl/xfont_msdf_frag.glsl's own PC block exactly (field order,
     // no vec3/mat fields so the default push_constant packing needs no manual padding).
     struct msdf_push_constants
     {
@@ -469,11 +469,11 @@ inline constexpr std::uint32_t g_WireFragSPVWords[] =
         float          m_BevelWeightPx;
         float          m_GlowRadiusPx;   // 0 = off; else how far the soft glow halo extends outward, in screen px
         float          m_GlowIntensity;  // 0-1, glow opacity multiplier (color itself is a shader constant, same precedent as the fill/outline/shadow colors below)
-        float          m_ItalicShear; // slope (dx per unit y) - see E28_msdf_vert.glsl's own comment on why field order/size here must stay in sync with that shader's own (shorter) PC block
+        float          m_ItalicShear; // slope (dx per unit y) - see xfont_msdf_vert.glsl's own comment on why field order/size here must stay in sync with that shader's own (shorter) PC block
     };
 
-    // Push constants for the glyph-bounds debug overlay's OWN dedicated pipeline (E28_wire_vert/frag)
-    // - see E28_wire_vert.glsl's own comment on why this is a separate shader pair rather than a
+    // Push constants for the glyph-bounds debug overlay's OWN dedicated pipeline (xfont_wire_vert/frag)
+    // - see xfont_wire_vert.glsl's own comment on why this is a separate shader pair rather than a
     // branch in msdf_push_constants/the MSDF shader. Color is fixed (opaque red) in the shader itself.
     struct wire_push_constants
     {
@@ -503,7 +503,7 @@ inline constexpr std::uint32_t g_WireFragSPVWords[] =
         // tracking the real content size closely enough that the display never looks visibly padded.
         xgpu::vertex_descriptor  m_VertexDescriptor;
         xgpu::pipeline           m_Pipeline;
-        // Glyph-bounds debug overlay's own pipeline (E28_wire_vert/frag) - see that shader's own
+        // Glyph-bounds debug overlay's own pipeline (xfont_wire_vert/frag) - see that shader's own
         // comment on why it's separate rather than a branch in the main MSDF pipeline. Has no texture
         // samplers and no dependency on the atlas/SDF texture, so unlike m_PipelineInstance below it's
         // created once here and never needs rebuilding.
@@ -885,7 +885,7 @@ inline constexpr std::uint32_t g_WireFragSPVWords[] =
 
             if (m_WireQuadCount > 0)
             {
-                // Draws the inset copy built above (own dedicated pipeline - see E28_wire_vert.glsl's
+                // Draws the inset copy built above (own dedicated pipeline - see xfont_wire_vert.glsl's
                 // own comment), NOT the real glyph triangles - shows each glyph's own mesh shape
                 // (diagonal included), just inset by a debug-only margin so it isn't swallowed by
                 // msdf-atlas-gen's own antialiasing padding on the real quad. Same Scale/Translate as

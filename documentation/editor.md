@@ -33,7 +33,7 @@ atlas file on disk is picked up even when no compile announced it).
 
 ## Commands
 
-Run as `<resource name>\<Command>` (see `list`) or `ResourceEditorCommand -Asset <guid> -Cmd <base64>`. Paths and values are base64.
+Run as `<resource name>\<Command>` (see `list`) or `ResourceEditorCommand -Asset <guid> -Cmd "<command>"`. Paths and values are text, in quotes.
 
 | Command | |
 |---|---|

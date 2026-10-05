@@ -110,10 +110,11 @@ inline constexpr std::uint32_t g_WireFragSPVWords[] =
         const ImVec2 CanvasSize   = ImVec2(std::max(Avail.x, 1.0f), std::max(Avail.y, 1.0f));
         const ImVec2 CanvasCenter = ImVec2(CanvasP0.x + CanvasSize.x * 0.5f, CanvasP0.y + CanvasSize.y * 0.5f);
 
-        ImGui::InvisibleButton("##canvas_btn", CanvasSize);
+        // Panning is the right mouse button (the left one is for actions)
+        ImGui::InvisibleButton("##canvas_btn", CanvasSize, ImGuiButtonFlags_MouseButtonRight);
         const bool bHovered = ImGui::IsItemHovered();
 
-        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Right))
         {
             const ImVec2 Delta = ImGui::GetIO().MouseDelta;
             View.m_Pan.m_X += Delta.x;

@@ -570,7 +570,13 @@ struct implementation final : xfont_compiler::instance
         // See m_PixelPadding's own comment (xfont_rsc_descriptor.h) for why this exists at all -
         // TightAtlasPacker's own default is 0, which let block compression bleed unrelated glyphs
         // together at atlas edges.
-        Packer.setSpacing(m_Descriptor.m_PixelPadding);
+        // The mips of the atlas (m_MipLevels) halve it that many times: two glyphs stay apart in the last one only if the gap between them is about 2^MipLevels
+        // pixels at full size, and the PixelRange band around each glyph already supplies part of that gap. The padding is the user's: it is said when it is too small, never changed.
+        const int Padding    = m_Descriptor.m_PixelPadding;
+        const int MipPadding = (1 << m_Descriptor.m_MipLevels) - static_cast<int>(std::ceil(m_Descriptor.m_PixelRange));
+        if (Padding < MipPadding)
+            LogMessage(msg_type::WARNING, std::format("PixelPadding is {} but {} mip level(s) with a PixelRange of {} need about {}: neighbouring glyphs will bleed into each other in the smaller mips. Raise PixelPadding or lower MipLevels", Padding, m_Descriptor.m_MipLevels, m_Descriptor.m_PixelRange, MipPadding));
+        Packer.setSpacing(Padding);
 
         // Pass 1: POWER_OF_TWO_RECTANGLE gives a fast, GUARANTEED-to-fit upper bound (its own
         // built-in size selector only ever tries square and 2:1-rectangle power-of-two dimensions -
@@ -633,7 +639,7 @@ struct implementation final : xfont_compiler::instance
             msdfgen::deinitializeFreetype(pFreetype);
             return xerr::create_f<state, "The auto-sized atlas would exceed the 8192x8192 safety limit - reduce GlyphSize or the charset">();
         }
-        LogMessage(msg_type::INFO, std::format("Atlas dimensions: {} x {} (auto-derived at GlyphSize={})", AtlasWidth, AtlasHeight, m_Descriptor.m_GlyphSize));
+        LogMessage(msg_type::INFO, std::format("Atlas dimensions: {} x {} (auto-derived at GlyphSize={}, glyph padding {}px for {} mip level(s))", AtlasWidth, AtlasHeight, m_Descriptor.m_GlyphSize, Padding, m_Descriptor.m_MipLevels));
 
         displayProgressBar("Generating distance field", 0.4f);
 
@@ -733,7 +739,9 @@ struct implementation final : xfont_compiler::instance
             TexDesc.m_InputVariant              = xtexture_rsc::single_input{ AssetRelPath };
             TexDesc.m_Compression               = Compression;
             TexDesc.m_bSRGB                      = false; // this is math data (distance field), never gamma-encoded
-            TexDesc.m_bGenerateMips             = false; // mip-filtering would corrupt the distance field
+            TexDesc.m_bGenerateMips             = m_Descriptor.m_MipLevels > 0; // PixelPadding is meant to keep the glyphs apart for this many levels (the warning above says when it does not)
+            // The texture compiler stops at the first level whose smaller side is under MinSize: this one ends at MipLevels
+            TexDesc.m_MipCustomMinSize          = std::max(1, std::min(AtlasWidth, AtlasHeight) >> m_Descriptor.m_MipLevels);
             TexDesc.m_Quality                    = 1.0f; // max BC7/BC4 encoder quality - the default (0.5) is tuned for ordinary color/normal textures; MSDF/SDF data is far more sensitive to per-block quantization error than those are, since reconstruction depends on precise per-channel comparisons
             TexDesc.m_UWrap                      = xtexture_rsc::wrap_type::CLAMP_TO_EDGE;
             TexDesc.m_VWrap                      = xtexture_rsc::wrap_type::CLAMP_TO_EDGE;

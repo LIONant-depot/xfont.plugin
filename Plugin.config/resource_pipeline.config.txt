@@ -2,10 +2,12 @@
 // New Types
 < s32:d u32:g s16:C u16:H s8:c u8:h f32:f f64:F string:s wstring:S u64:G s64:D bool:c enum:s >
 
-[ xProperties : 10 ]
+[ xProperties : 12 ]
 { Name:s                            Value:?                   }
 //--------------------------------  -------------------------
   "PipelinePlugin/TypeName"                  ;string "Font"
+  "PipelinePlugin/Group"                     ;string "Graphics"
+  "PipelinePlugin/Description"               ;string "A TrueType or OpenType font baked into an atlas (MTSDF, SDF or bitmap) for the Text component."
   "PipelinePlugin/FileExtension"             ;wstring "xfont"
   "PipelinePlugin/TypeGUID/Value"            ;u64    #3285CB58BB79E1AD
   "PipelinePlugin/IconPaths[]"                      ;s64    1

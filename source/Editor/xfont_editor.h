@@ -310,11 +310,12 @@ namespace xfont_editor
             ImGui::BeginChild("##canvas", ImGui::GetContentRegionAvail(), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove);
             const ImVec2 RawAvail   = ImGui::GetContentRegionAvail();
             const ImVec2 CanvasSize = ImVec2(std::max(RawAvail.x, 1.0f), std::max(RawAvail.y, 1.0f));        // InvisibleButton asserts on a zero size
-            ImGui::InvisibleButton("##canvas_btn", CanvasSize);
+            // Panning is the right mouse button (the left one is for actions)
+            ImGui::InvisibleButton("##canvas_btn", CanvasSize, ImGuiButtonFlags_MouseButtonRight);
             const ImVec2 CanvasMin = ImGui::GetItemRectMin();
             const bool   bHovered  = ImGui::IsItemHovered();
 
-            if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+            if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Right))
             {
                 const ImVec2 Delta = ImGui::GetIO().MouseDelta;
                 m_LiveView.m_Pan.m_X += Delta.x;

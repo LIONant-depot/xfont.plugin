@@ -115,6 +115,10 @@ namespace xfont_rsc
         // smaller value may already be enough; larger charsets/GlyphSize pay for more padding with a
         // bigger atlas, so it's worth tuning down if you verify it still looks clean.
         int   m_PixelPadding   { 4 };
+        // MTSDF/SDF only: how many mip levels the atlas texture gets below its full size (0 = none). Minified text (drawn much smaller than GlyphSize)
+        // shimmers without them. Every level halves the texture, so glyphs only stay apart in it if the gap between them is about 2^MipLevels pixels at full
+        // size: PixelPadding has to be at least about 2^MipLevels minus PixelRange (the compiler warns when it is not), so more levels cost atlas area.
+        int   m_MipLevels      { 3 };
 
         // BITMAP only.
         std::vector<int>    m_BitmapSizes       { 16 };  // point sizes (px) to bake - all packed into one shared atlas
@@ -138,6 +142,7 @@ namespace xfont_rsc
                 for (auto S : m_BitmapSizes) if (S < 4) Errors.push_back("Every BitmapSizes entry must be at least 4 pixels");
             }
             else if (m_GlyphSize < 4.0f) Errors.push_back("GlyphSize must be at least 4 pixels");
+            if (m_OutputType != output_type::BITMAP && (m_MipLevels < 0 || m_MipLevels > 8)) Errors.push_back("MipLevels must be between 0 and 8");
         }
 
         XPROPERTY_VDEF
@@ -188,6 +193,12 @@ namespace xfont_rsc
                 , member_dynamic_flags<+[](const descriptor& O)
                 { xproperty::flags::type F{}; F.m_bDontShow = O.m_OutputType == output_type::BITMAP; return F; }>
                 , member_help<"Pixels-per-em each glyph is baked at - this is the actual size of the rendered characters. The atlas texture is always auto-sized to the smallest fitting rectangle for every baked glyph at this size, so there's nothing to tune there.">>
+            , obj_member<"MipLevels"
+                , &descriptor::m_MipLevels
+                , member_ui<int>::drag_bar<0.1f, 0, 8>
+                , member_dynamic_flags<+[](const descriptor& O)
+                { xproperty::flags::type F{}; F.m_bDontShow = O.m_OutputType == output_type::BITMAP; return F; }>
+                , member_help<"Mip levels of the atlas texture below its full size (0 = none). Text drawn much smaller than GlyphSize shimmers without them; text near or above GlyphSize looks the same either way. Each level needs about twice the gap between glyphs (2^MipLevels pixels, less the distance-field band PixelRange already leaves), so PixelPadding has to be at least that (the compiler warns when it is not) and the atlas grows: 3 is cheap with the default PixelRange, 6 or more costs a lot of area for small glyph sizes. BITMAP fonts are drawn 1:1 and never get mips.">>
             , obj_member<"PixelPadding"
                 , &descriptor::m_PixelPadding
                 , member_ui<int>::drag_bar<1, 0, 32>

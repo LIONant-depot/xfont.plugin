@@ -8,3 +8,5 @@ build/xfont_compiler.vs2022/*
 build/xfont_compiler.vs2022/xfont_compiler.sln
 build/xfont_compiler.vs2022/xfont_compiler.vcxproj
 build/xfont_compiler.vs2022/xfont_compiler.vcxproj.filters
+# Linux: native compiler builds (xLION root CMakeLists.txt, xlion_compilers) and the dependencies link
+/Build/*_compiler.linux/

@@ -46,7 +46,7 @@ namespace
     //-----------------------------------------------------------------------------------------
     void CollectCodepointsFromUtf8File(const std::wstring& Path, std::set<std::uint32_t>& Out)
     {
-        std::ifstream File(Path, std::ios::binary);
+        std::ifstream File(std::filesystem::path(Path), std::ios::binary);
         if (!File) return;
         const std::string Bytes((std::istreambuf_iterator<char>(File)), std::istreambuf_iterator<char>());
 

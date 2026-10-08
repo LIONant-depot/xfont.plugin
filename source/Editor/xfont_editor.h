@@ -56,6 +56,7 @@ namespace xfont_editor
 
         xeditor::set_preview_cmd<render_settings>   m_SetPreview;
         xeditor::list_preview_cmd<render_settings>  m_ListPreview;
+        pan_zoom                        m_AtlasView, m_LiveView;    // before m_SetView: its constructor takes the addresses of their members
         xeditor::view2d_cmd             m_SetView;
         font_info_cmd                   m_FontInfo;
 
@@ -75,7 +76,6 @@ namespace xfont_editor
 
         text_renderer                   m_Text;
         bool                            m_bText = false;            // the text renderer's GPU objects exist
-        pan_zoom                        m_AtlasView, m_LiveView;
 
         xrsc::font_ref                  m_Ref;
         xfont::rt*                      m_pFont  = nullptr;         // the loaded font this frame (null unless m_State is ready)

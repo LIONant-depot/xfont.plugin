@@ -1,4 +1,5 @@
 #include "xfont_compiler.h"
+#include <filesystem>
 #include "../xfont_rsc_descriptor.h"
 #include "../xfont_rsc_runtime.h"
 #include "../bridges/xserializer/xfont_to_xserializer.h"

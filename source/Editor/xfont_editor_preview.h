@@ -8,7 +8,7 @@
 #include "source/xGPU.h"
 #include "dependencies/xproperty/source/xcore/my_properties.h"
 #include "dependencies/xproperty/source/examples/imgui/xPropertyImGuiInspector.h"
-#include "source/tools/xgpu_xcore_bitmap_helpers.h"
+#include "source/Tools/xgpu_xcore_bitmap_helpers.h"
 #include "plugins/xfont.plugin/source/xfont_rsc_descriptor.h"
 #include "plugins/xfont.plugin/source/xfont_xgpu_rsc_loader.h"
 #include "imgui_internal.h"

@@ -9,6 +9,7 @@
 // code path), at the cost of a lightweight, dependency-free header include across the plugin
 // boundary. xtexture_rsc_descriptor.h has no runtime/GPU coupling, only xproperty reflection.
 #include "../../../xtexture.plugin/source/xtexture_rsc_descriptor.h"
+#include "dependencies/xresource_pipeline_v2/source/xresource_pipeline_virtual.h"
 
 #include <msdfgen.h>
 #include <msdfgen-ext.h>
@@ -94,6 +95,16 @@ struct implementation final : xfont_compiler::instance
     using msg_type = xresource_pipeline::msg_type;
 
     xfont_rsc::descriptor m_Descriptor;
+
+    //---------------------------------------------------------------------------------------------
+
+    // What this font made, in its own descriptor folder (Virtual.txt): it tells what a texture slot of its textures was set by the font and what by the user
+    void SaveOwnedList() noexcept
+    {
+        xresource_pipeline::virtual_rsc::owned_list List;
+        List.m_Resources = m_Dependencies.m_VirtualResources;
+        List.Save(std::format(L"{}/{}.desc", m_ProjectPaths.m_Descriptors, m_ResourcePartialPath));
+    }
 
     //---------------------------------------------------------------------------------------------
 
@@ -385,13 +396,14 @@ struct implementation final : xfont_compiler::instance
             const auto GuidHex      = std::format("{:X}", GuidValue);   // folders are named without leading zeros (the resource manager loads by {:X})
 
             // Same reasoning as the MTSDF/SDF EmitVirtualTexture lambda further down this file: the
-            // PNG lives directly inside this virtual resource's own descriptor folder (GUID-sharded,
-            // same scheme every resource uses) rather than a shared Cache/Temp/Font dumping ground,
-            // since nothing but this one virtual resource ever references it.
-            const auto DescDir             = std::format(L"{}/Texture/{}/{}/{}.desc", m_ProjectPaths.m_CachedDescriptors, xstrtool::To(std::string_view(Byte0)), xstrtool::To(std::string_view(Byte1)), xstrtool::To(std::string_view(GuidHex)));
+            // descriptor is an ordinary one (Descriptors/, in git, the font is its owner); the PNG
+            // is generated data and stays in the cache, in a folder of the same scheme
+            const auto PixelDir            = std::format(L"{}/Texture/{}/{}/{}.desc", m_ProjectPaths.m_CachedDescriptors, xstrtool::To(std::string_view(Byte0)), xstrtool::To(std::string_view(Byte1)), xstrtool::To(std::string_view(GuidHex)));
+            const auto DescDir             = std::format(L"{}/Texture/{}/{}/{}.desc", m_ProjectPaths.m_Descriptors, xstrtool::To(std::string_view(Byte0)), xstrtool::To(std::string_view(Byte1)), xstrtool::To(std::string_view(GuidHex)));
+            CreatePath(PixelDir);
             CreatePath(DescDir);
-            const auto DescDirRelToProject = DescDir.substr(m_ProjectPaths.m_Project.length() + 1);
-            const auto AssetRelPath        = std::format(L"{}/bitmap.png", DescDirRelToProject);
+            const auto PixelDirRelToProject = PixelDir.substr(m_ProjectPaths.m_Project.length() + 1);
+            const auto AssetRelPath        = std::format(L"{}/bitmap.png", PixelDirRelToProject);
             const auto AssetFullPath       = std::format(L"{}/{}", m_ProjectPaths.m_Project, AssetRelPath);
             WritePng(AssetFullPath, AtlasWidth, AtlasHeight, 1, TexturePixels);
 
@@ -412,15 +424,16 @@ struct implementation final : xfont_compiler::instance
                 TexDesc.m_UWrap          = xtexture_rsc::wrap_type::CLAMP_TO_EDGE;
                 TexDesc.m_VWrap          = xtexture_rsc::wrap_type::CLAMP_TO_EDGE;
 
-                xproperty::settings::context Context{};
-                TexDesc.Serialize(false, DescDir + L"/Descriptor.txt", Context);
-
-                xresource_pipeline::info Info{ xresource::full_guid{ InstanceGuid, xtexture_rsc::resource_type_guid_v } };
-                Info.m_Name = std::format("{} (bitmap)", xstrtool::To(std::wstring_view(m_Descriptor.m_FontFile)));
-                // Same mechanism a regular asset uses to record which folder it lives in - see the
+                // The atlas is an ordinary descriptor the user may edit (compression, quality, ...): a compile that finds it updates only what the font
+                // owns - the input (the pixels it just wrote) - and a file is written only when its text changed (see xresource_pipeline_virtual.h).
+                // Same mechanism a regular asset uses to record which folder it lives in (the Info links the font) - see the
                 // MTSDF/SDF EmitVirtualTexture lambda's own comment on this further down this file.
-                Info.m_RscLinks.push_back(xresource::full_guid{ m_ResourceGuid, xfont_rsc::resource_type_guid_v });
-                Info.Serialize(false, DescDir + L"/Info.txt", Context);
+                xresource_pipeline::virtual_rsc::EmitDescriptor(DescDir, TexDesc, [](xtexture_rsc::descriptor& Existing, const xtexture_rsc::descriptor& Fresh)
+                {
+                    Existing.m_InputVariant = Fresh.m_InputVariant;
+                });
+                xresource_pipeline::virtual_rsc::EmitInfo(DescDir, xresource::full_guid{ InstanceGuid, xtexture_rsc::resource_type_guid_v }
+                    , std::format("{} (bitmap)", xstrtool::To(std::wstring_view(m_Descriptor.m_FontFile))), xresource::full_guid{ m_ResourceGuid, xfont_rsc::resource_type_guid_v });
 
                 // The PNG itself is NOT recorded here as one of the font's own m_VirtualAssets: it's
                 // not something the font depends on (the font never reads it back), it's an input the
@@ -428,6 +441,7 @@ struct implementation final : xfont_compiler::instance
                 // OWN m_Dependencies.m_Assets when it compiles this descriptor, which is where an
                 // inspector on the texture resource itself will correctly show it.
                 m_Dependencies.m_VirtualResources.push_back(xresource::full_guid{ InstanceGuid, xtexture_rsc::resource_type_guid_v });
+                SaveOwnedList();
             }
 
             xrsc::texture_ref TextureRef{};
@@ -718,20 +732,20 @@ struct implementation final : xfont_compiler::instance
             const auto Byte1        = std::format("{:02X}", (GuidValue >> 8) & 0xFF);
             const auto GuidHex      = std::format("{:X}", GuidValue);   // folders are named without leading zeros (the resource manager loads by {:X})
 
-            // This virtual texture's own descriptor folder - same GUID-sharded scheme every resource
-            // uses (Cache/Descriptors/<Type>/<byte0>/<byte1>/<guidhex>.desc/). Computed before the PNG
-            // is written so the PNG can live directly inside it instead of a shared Cache/Temp/Font
-            // dumping ground: nothing but this one virtual resource ever references this PNG, so it
-            // belongs with the descriptor that owns it (and gets cleaned up/relocated alongside it,
-            // rather than orphaned in a scratch folder shared by every font in the project).
-            const auto DescDir = std::format(L"{}/Texture/{}/{}/{}.desc", m_ProjectPaths.m_CachedDescriptors, xstrtool::To(std::string_view(Byte0)), xstrtool::To(std::string_view(Byte1)), xstrtool::To(std::string_view(GuidHex)));
+            // This virtual texture's descriptor folder - same GUID-sharded scheme every resource uses
+            // (Descriptors/<Type>/<byte0>/<byte1>/<guidhex>.desc/, the font is its owner). The PNG is
+            // generated data that nothing but this one virtual resource references: it stays in the
+            // cache, in a folder of the same scheme (Cache/Descriptors/<Type>/.../<guidhex>.desc/)
+            const auto PixelDir = std::format(L"{}/Texture/{}/{}/{}.desc", m_ProjectPaths.m_CachedDescriptors, xstrtool::To(std::string_view(Byte0)), xstrtool::To(std::string_view(Byte1)), xstrtool::To(std::string_view(GuidHex)));
+            const auto DescDir  = std::format(L"{}/Texture/{}/{}/{}.desc", m_ProjectPaths.m_Descriptors, xstrtool::To(std::string_view(Byte0)), xstrtool::To(std::string_view(Byte1)), xstrtool::To(std::string_view(GuidHex)));
+            CreatePath(PixelDir);
             CreatePath(DescDir);
 
             // single_input paths are resolved relative to the project root (see xtexture_compiler.cpp's
             // own LoadTexture(..., m_ProjectPaths.m_Project + "/" + FileName)), so strip that prefix
-            // back off DescDir rather than re-deriving the "Cache/Descriptors/..." literal by hand.
-            const auto DescDirRelToProject = DescDir.substr(m_ProjectPaths.m_Project.length() + 1);
-            const auto AssetRelPath  = std::format(L"{}/{}.png", DescDirRelToProject, xstrtool::To(std::string_view(RoleSalt)));
+            // back off PixelDir rather than re-deriving the "Cache/Descriptors/..." literal by hand.
+            const auto PixelDirRelToProject = PixelDir.substr(m_ProjectPaths.m_Project.length() + 1);
+            const auto AssetRelPath  = std::format(L"{}/{}.png", PixelDirRelToProject, xstrtool::To(std::string_view(RoleSalt)));
             const auto AssetFullPath = std::format(L"{}/{}", m_ProjectPaths.m_Project, AssetRelPath);
             WritePng(AssetFullPath, AtlasWidth, AtlasHeight, Channels, Pixels);
 
@@ -747,22 +761,20 @@ struct implementation final : xfont_compiler::instance
             TexDesc.m_UWrap                      = xtexture_rsc::wrap_type::CLAMP_TO_EDGE;
             TexDesc.m_VWrap                      = xtexture_rsc::wrap_type::CLAMP_TO_EDGE;
 
-            xproperty::settings::context Context{};
-            TexDesc.Serialize(false, DescDir + L"/Descriptor.txt", Context);
-
-            xresource_pipeline::info Info{ xresource::full_guid{ InstanceGuid, xtexture_rsc::resource_type_guid_v } };
-            Info.m_Name = std::format("{} ({})", xstrtool::To(std::wstring_view(m_Descriptor.m_FontFile)), RoleSalt);
-            // Same mechanism a regular asset uses to record which folder it lives in (see
-            // AssetMgr::NewAsset's own m_RscLinks.push_back(ParentGUID)) - the Asset Browser already
-            // inverts every resource's m_RscLinks into an in-memory parent->children index at scan
-            // time, so linking back to the font here is the ONLY change needed for this virtual
-            // texture to show up as the font's child in the browser - no browser-side schema change.
-            Info.m_RscLinks.push_back(xresource::full_guid{ m_ResourceGuid, xfont_rsc::resource_type_guid_v });
-            Info.Serialize(false, DescDir + L"/Info.txt", Context);
-
+            // An ordinary descriptor the user may edit: a compile that finds it updates only what the font owns - the input and the mips
+            // (they follow the size of the atlas and MipLevels of the font) - and a file is written only when its text changed
+            xresource_pipeline::virtual_rsc::EmitDescriptor(DescDir, TexDesc, [](xtexture_rsc::descriptor& Existing, const xtexture_rsc::descriptor& Fresh)
+            {
+                Existing.m_InputVariant     = Fresh.m_InputVariant;
+                Existing.m_bGenerateMips    = Fresh.m_bGenerateMips;
+                Existing.m_MipCustomMinSize = Fresh.m_MipCustomMinSize;
+            });
+            xresource_pipeline::virtual_rsc::EmitInfo(DescDir, xresource::full_guid{ InstanceGuid, xtexture_rsc::resource_type_guid_v }
+                , std::format("{} ({})", xstrtool::To(std::wstring_view(m_Descriptor.m_FontFile)), RoleSalt), xresource::full_guid{ m_ResourceGuid, xfont_rsc::resource_type_guid_v });
             // The PNG itself is NOT recorded here as one of the font's own m_VirtualAssets - see the
             // BITMAP branch's own comment on this further up this file for why.
             m_Dependencies.m_VirtualResources.push_back(xresource::full_guid{ InstanceGuid, xtexture_rsc::resource_type_guid_v });
+            SaveOwnedList();
 
             return InstanceGuid;
         };

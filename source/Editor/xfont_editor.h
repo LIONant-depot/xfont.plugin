@@ -7,6 +7,7 @@
 // editors through xeditor::open_resource_editors.
 #include "source/Tools/Editor/xeditor_descriptor_editor.h"
 #include "source/Tools/Editor/xeditor_camera.h"
+#include "source/Tools/Editor/xeditor_virtual_resources.h"
 #include "source/Examples/E05_Textures/E05_BitmapInspector.h"
 #include "dependencies/xresource_pipeline_v2/source/editor/xresource_editor_resources.h"
 #include "plugins/xfont.plugin/source/Editor/xfont_editor_preview.h"
@@ -83,6 +84,10 @@ namespace xfont_editor
         int                             m_ResolvedFrame = -1;
         std::chrono::steady_clock::time_point m_ReloadUntil{};      // the atlas is not touched again before this, after a compile: it is rebuilt behind our back
 
+        // The atlases an earlier output mode made stay on disk, unused, until this takes them away
+        xeditor::virtual_resources::remove_unused_cmd   m_RemoveUnused{ m_Undo, m_Document };
+        xeditor::virtual_resources::unused_button       m_UnusedButton;
+
         session(xresource::full_guid Guid, xresource_editor::library::guid LibraryGuid, xgpu::device* pDevice) noexcept
             : descriptor_editor("Font", Guid, LibraryGuid, pDevice)
             , m_SetPreview(m_Undo, m_Settings), m_ListPreview(m_Undo, m_Settings), m_SetView(m_Undo, { { "atlas", { &m_AtlasView.m_Zoom, &m_AtlasView.m_Pan.m_X, &m_AtlasView.m_Pan.m_Y } }, { "live", { &m_LiveView.m_Zoom, &m_LiveView.m_Pan.m_X, &m_LiveView.m_Pan.m_Y } } }), m_FontInfo(m_Undo, *this)
@@ -92,7 +97,7 @@ namespace xfont_editor
             AddPanel("Font Texture",       dock::left,        [this] { RenderAtlas(); });
             AddPanel("Texture Info",       dock::left_bottom, [this] { Resolve(); m_TextureInspector.Show(); });
             AddPanel("Font Live Preview",  dock::center,      [this] { RenderLive(); });
-            AddPanel("Description",        dock::right,       [this] { m_DescriptorInspector.Show(); });
+            AddPanel("Description",        dock::right,       [this] { if (m_Document.isLoaded()) m_UnusedButton.Draw(m_Undo, m_Document); m_DescriptorInspector.Show(); });
             AddPanel("Rendering Settings", dock::bottom,      [this] { m_Settings.m_CurrentFontOutputType = (m_pFont && m_pFont->m_pFont) ? m_pFont->m_pFont->m_OutputType : xfont_rsc::output_type::MTSDF; m_SettingsInspector.Show(); });
 
             m_bText = pDevice && m_Text.Create(*pDevice) == 0;

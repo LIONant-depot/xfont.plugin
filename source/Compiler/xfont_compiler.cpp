@@ -428,10 +428,11 @@ struct implementation final : xfont_compiler::instance
                 // owns - the input (the pixels it just wrote) - and a file is written only when its text changed (see xresource_pipeline_virtual.h).
                 // Same mechanism a regular asset uses to record which folder it lives in (the Info links the font) - see the
                 // MTSDF/SDF EmitVirtualTexture lambda's own comment on this further down this file.
-                xresource_pipeline::virtual_rsc::EmitDescriptor(DescDir, TexDesc, [](xtexture_rsc::descriptor& Existing, const xtexture_rsc::descriptor& Fresh)
+                if (!xresource_pipeline::virtual_rsc::EmitDescriptor(DescDir, TexDesc, [](xtexture_rsc::descriptor& Existing, const xtexture_rsc::descriptor& Fresh)
                 {
                     Existing.m_InputVariant = Fresh.m_InputVariant;
-                });
+                }))
+                    LogMessage(msg_type::WARNING, "The descriptor of the atlas texture could not be read: it is left as it is");
                 xresource_pipeline::virtual_rsc::EmitInfo(DescDir, xresource::full_guid{ InstanceGuid, xtexture_rsc::resource_type_guid_v }
                     , std::format("{} (bitmap)", xstrtool::To(std::wstring_view(m_Descriptor.m_FontFile))), xresource::full_guid{ m_ResourceGuid, xfont_rsc::resource_type_guid_v });
 
@@ -763,12 +764,13 @@ struct implementation final : xfont_compiler::instance
 
             // An ordinary descriptor the user may edit: a compile that finds it updates only what the font owns - the input and the mips
             // (they follow the size of the atlas and MipLevels of the font) - and a file is written only when its text changed
-            xresource_pipeline::virtual_rsc::EmitDescriptor(DescDir, TexDesc, [](xtexture_rsc::descriptor& Existing, const xtexture_rsc::descriptor& Fresh)
+            if (!xresource_pipeline::virtual_rsc::EmitDescriptor(DescDir, TexDesc, [](xtexture_rsc::descriptor& Existing, const xtexture_rsc::descriptor& Fresh)
             {
                 Existing.m_InputVariant     = Fresh.m_InputVariant;
                 Existing.m_bGenerateMips    = Fresh.m_bGenerateMips;
                 Existing.m_MipCustomMinSize = Fresh.m_MipCustomMinSize;
-            });
+            }))
+                LogMessage(msg_type::WARNING, "The descriptor of the atlas texture could not be read: it is left as it is");
             xresource_pipeline::virtual_rsc::EmitInfo(DescDir, xresource::full_guid{ InstanceGuid, xtexture_rsc::resource_type_guid_v }
                 , std::format("{} ({})", xstrtool::To(std::wstring_view(m_Descriptor.m_FontFile)), RoleSalt), xresource::full_guid{ m_ResourceGuid, xfont_rsc::resource_type_guid_v });
             // The PNG itself is NOT recorded here as one of the font's own m_VirtualAssets - see the

@@ -382,7 +382,7 @@ struct implementation final : xfont_compiler::instance
             const auto GuidValue    = InstanceGuid.m_Value;
             const auto Byte0        = std::format("{:02X}", (GuidValue) & 0xFF);
             const auto Byte1        = std::format("{:02X}", (GuidValue >> 8) & 0xFF);
-            const auto GuidHex      = std::format("{:016X}", GuidValue);
+            const auto GuidHex      = std::format("{:X}", GuidValue);   // folders are named without leading zeros (the resource manager loads by {:X})
 
             // Same reasoning as the MTSDF/SDF EmitVirtualTexture lambda further down this file: the
             // PNG lives directly inside this virtual resource's own descriptor folder (GUID-sharded,
@@ -716,7 +716,7 @@ struct implementation final : xfont_compiler::instance
             const auto GuidValue    = InstanceGuid.m_Value;
             const auto Byte0        = std::format("{:02X}", (GuidValue) & 0xFF);
             const auto Byte1        = std::format("{:02X}", (GuidValue >> 8) & 0xFF);
-            const auto GuidHex      = std::format("{:016X}", GuidValue);
+            const auto GuidHex      = std::format("{:X}", GuidValue);   // folders are named without leading zeros (the resource manager loads by {:X})
 
             // This virtual texture's own descriptor folder - same GUID-sharded scheme every resource
             // uses (Cache/Descriptors/<Type>/<byte0>/<byte1>/<guidhex>.desc/). Computed before the PNG

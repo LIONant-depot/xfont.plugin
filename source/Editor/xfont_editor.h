@@ -144,7 +144,7 @@ namespace xfont_editor
                 m_bTextureCompiling = true;
                 m_bTextureStarted   = true;
             }
-            else if (Result == result::SUCCESS || Result == result::SUCCESS_WARNINGS || Result == result::FAILURE)
+            else if (Result == result::SUCCESS || Result == result::SUCCESS_WARNINGS || Result == result::FAILURE || Result == result::CANCELLED)
             {
                 m_bTextureCompiling = false;
                 m_bTextureDone      = true;

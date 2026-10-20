@@ -125,6 +125,7 @@ namespace xfont_rsc
         bitmap_compression  m_BitmapCompression { bitmap_compression::COMPRESSED };
 
         void SetupFromSource(std::string_view) override {}
+        std::string SuggestedName() const noexcept override { return NameOfFile(m_FontFile); }
 
         void Validate(std::vector<std::string>& Errors) const noexcept override
         {

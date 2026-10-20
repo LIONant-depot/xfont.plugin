@@ -73,7 +73,6 @@ namespace xfont_editor
         std::atomic<bool>               m_bTextureDone = false;
         std::filesystem::file_time_type m_TextureStamp{};           // when the atlas file on disk was written, as of the load: a newer one means the atlas was compiled since
         int                             m_StampCheck = 0;
-        std::chrono::steady_clock::time_point m_FontCompiledAt{};   // when the font's own compile finished: the atlas compile follows, or is not needed
 
         text_renderer                   m_Text;
         bool                            m_bText = false;            // the text renderer's GPU objects exist
@@ -122,9 +121,12 @@ namespace xfont_editor
             if (m_bTextureDone.exchange(false))    Reacquire();
 
             // The atlas compile does not always announce itself in time (or at all): a file written after we loaded it is a new atlas
-            if (m_pFont && ++m_StampCheck % 15 == 0 && !m_pFont->m_TextureResourcePath.empty() && std::filesystem::exists(m_pFont->m_TextureResourcePath))
-                if (const auto Stamp = std::filesystem::last_write_time(m_pFont->m_TextureResourcePath); m_TextureStamp != std::filesystem::file_time_type{} && Stamp != m_TextureStamp)
-                    Reacquire();
+            // Asked of the manager, not of m_pFont: Resolve nulls that while it waits for the atlas, which is exactly when this has to run.
+            // (the manager asserts when a load fails: the file is checked first, as Resolve does)
+            if (!m_Ref.empty() && ++m_StampCheck % 15 == 0 && m_Document.isLoaded() && std::filesystem::exists(m_Document.m_ResourcePath))
+                if (const auto* pLoaded = xresource::g_Mgr.getResource(m_Ref); pLoaded && !pLoaded->m_TextureResourcePath.empty() && std::filesystem::exists(pLoaded->m_TextureResourcePath))
+                    if (const auto Stamp = std::filesystem::last_write_time(pLoaded->m_TextureResourcePath); m_TextureStamp != std::filesystem::file_time_type{} && Stamp != m_TextureStamp)
+                        Reacquire();
             descriptor_editor::Render();
         }
 
@@ -170,9 +172,9 @@ namespace xfont_editor
             m_ReloadUntil = std::chrono::steady_clock::now() + std::chrono::seconds(1);      // the compile and the reload are not synchronized to frames at all: generous, not tight
         }
 
+        // Said when the whole order is over: the font and its atlas are compiled
         void OnCompiled() noexcept override
         {
-            m_FontCompiledAt = std::chrono::steady_clock::now();
             Reacquire();
         }
 
@@ -219,6 +221,22 @@ namespace xfont_editor
             m_bTextureInfo = true;
         }
 
+        // Every output type has an atlas of its own (a different guid), and Reload runs before the font is loaded: the loaded font is the one that knows which atlas it uses.
+        // Without this a type change followed the old atlas: its compile was never seen and the Texture Info showed it.
+        void SyncAtlasGuid() noexcept
+        {
+            if (!m_pFont || !m_pFont->m_pFont || m_pFont->m_pFont->m_Texture.empty()) return;
+            // (the loader resolved the reference, so it holds a pointer: the manager says which guid it is)
+            const xresource::full_guid Own = xresource::g_Mgr.getFullGuid(xresource::full_guid{ m_pFont->m_pFont->m_Texture.m_Instance, m_pFont->m_pFont->m_Texture.m_Type });
+            if (Own.m_Instance.m_Value == m_TextureInstance.load()) return;
+            m_TextureGuid     = Own;
+            m_TextureInstance = Own.m_Instance.m_Value;
+            m_TextureStamp    = {};
+            m_TextureInfo.clear();
+            m_TextureInspector.Clear();
+            m_bTextureInfo    = false;
+        }
+
         // What can be shown this frame: decided once per frame, however many panels ask.
         void Resolve() noexcept
         {
@@ -233,13 +251,12 @@ namespace xfont_editor
             if (!std::filesystem::exists(m_Document.m_ResourcePath))  m_State = state::not_compiled;
             else if (m_Ref.empty())                                   m_State = state::reloading;
             else if (m_pFont = xresource::g_Mgr.getResource(m_Ref); !m_pFont) m_State = state::not_compiled;
-            else if (std::chrono::steady_clock::now() < m_ReloadUntil) { m_State = state::reloading; m_pFont = nullptr; }
+            else if (SyncAtlasGuid(), std::chrono::steady_clock::now() < m_ReloadUntil) { m_State = state::reloading; m_pFont = nullptr; }
             else
             {
-                // The font can be ready before its atlas is: the atlas is compiled after it, and the file of the last compile is still on disk.
-                // Only a file written after this compile began is the new one. When the atlas has not started compiling shortly after the font
-                // finished, nothing in it changed and the file on disk is the right one.
-                const bool bWaiting = m_bTextureCompiling || std::chrono::steady_clock::now() - m_FontCompiledAt < std::chrono::seconds(3);
+                // The compile of the font is over when its whole order is (the atlas is part of it), so the file on disk is the right one - except while
+                // the atlas is compiled on its own (an edit of its descriptor): then only a file written after that compile began is the new one.
+                const bool bWaiting = m_bTextureCompiling;
                 const bool bStale = !m_pFont->m_TextureResourcePath.empty()
                     && (!std::filesystem::exists(m_pFont->m_TextureResourcePath) || (bWaiting && std::filesystem::last_write_time(m_pFont->m_TextureResourcePath) < CompileStartTime()));
                 m_State = bStale ? state::reloading : state::ready;

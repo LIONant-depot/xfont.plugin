@@ -685,7 +685,7 @@ struct implementation final : xfont_compiler::instance
         {
             msdf_atlas::ImmediateAtlasGenerator<float, 4, msdf_atlas::mtsdfGenerator, msdf_atlas::BitmapAtlasStorage<msdfgen::byte, 4>> Generator(AtlasWidth, AtlasHeight);
             Generator.setAttributes(GenAttribs);
-            Generator.setThreadCount(static_cast<int>(std::max(1u, std::thread::hardware_concurrency())));
+            Generator.setThreadCount(getThreadCount());
             Generator.generate(Glyphs.data(), static_cast<int>(Glyphs.size()));
 
             auto Bitmap = static_cast<msdfgen::BitmapConstSection<msdfgen::byte, 4>>(Generator.atlasStorage());
@@ -702,7 +702,7 @@ struct implementation final : xfont_compiler::instance
         {
             msdf_atlas::ImmediateAtlasGenerator<float, 1, msdf_atlas::sdfGenerator, msdf_atlas::BitmapAtlasStorage<msdfgen::byte, 1>> Generator(AtlasWidth, AtlasHeight);
             Generator.setAttributes(GenAttribs);
-            Generator.setThreadCount(static_cast<int>(std::max(1u, std::thread::hardware_concurrency())));
+            Generator.setThreadCount(getThreadCount());
             Generator.generate(Glyphs.data(), static_cast<int>(Glyphs.size()));
 
             auto Bitmap = static_cast<msdfgen::BitmapConstSection<msdfgen::byte, 1>>(Generator.atlasStorage());

@@ -8,7 +8,7 @@
 #include "source/Tools/Editor/xeditor_descriptor_editor.h"
 #include "source/Tools/Editor/xeditor_camera.h"
 #include "source/Tools/Editor/xeditor_virtual_resources.h"
-#include "source/Examples/E05_Textures/E05_BitmapInspector.h"
+#include "plugins/xtexture.plugin/source/Editor/xtexture_editor_bitmap_info.h"
 #include "dependencies/xresource_pipeline_v2/source/editor/xresource_editor_resources.h"
 #include "plugins/xfont.plugin/source/Editor/xfont_editor_preview.h"
 #include "plugins/xtexture.plugin/source/xtexture_xgpu_rsc_loader.h"
@@ -64,7 +64,7 @@ namespace xfont_editor
         render_settings                 m_Settings;
         xeditor::inspector_panel        m_SettingsInspector{ "Rendering Settings" };
         xeditor::inspector_panel        m_TextureInspector{ "Texture Info" };
-        e05::bitmap_inspector           m_TextureInfo;              // what the font's atlas texture looks like on disk, shown by m_TextureInspector
+        xtexture_inspector::bitmap_info           m_TextureInfo;              // what the font's atlas texture looks like on disk, shown by m_TextureInspector
         bool                            m_bTextureInfo = false;
         xresource::full_guid            m_TextureGuid;              // the font's virtual atlas texture, from what the compiler reported
         std::atomic<std::uint64_t>      m_TextureInstance = 0;      // the same, for the compile thread's callback

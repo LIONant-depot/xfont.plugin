@@ -12,6 +12,7 @@
 #include "dependencies/xresource_pipeline_v2/source/editor/xresource_editor_resources.h"
 #include "plugins/xfont.plugin/source/Editor/xfont_editor_preview.h"
 #include "plugins/xtexture.plugin/source/xtexture_xgpu_rsc_loader.h"
+#include "plugins/xtexture.plugin/source/xtexture_file.h"
 #include "plugins/xfont.plugin/source/xfont_xgpu_rsc_loader.cpp"        // the resource loader: compiled once, in the host's translation unit
 
 #include <atomic>
@@ -64,6 +65,7 @@ namespace xfont_editor
         render_settings                 m_Settings;
         xeditor::inspector_panel        m_SettingsInspector{ "Rendering Settings" };
         xeditor::inspector_panel        m_TextureInspector{ "Texture Info" };
+        std::unique_ptr<xtexture_file::loaded>    m_pTextureFile;             // the atlas texture file as read (m_TextureInfo borrows its bitmap)
         xtexture_inspector::bitmap_info           m_TextureInfo;              // what the font's atlas texture looks like on disk, shown by m_TextureInspector
         bool                            m_bTextureInfo = false;
         xresource::full_guid            m_TextureGuid;              // the font's virtual atlas texture, from what the compiler reported
@@ -216,9 +218,28 @@ namespace xfont_editor
             if (m_bTextureInfo || m_TextureGuid.empty()) return;
             const auto Path = xresource::g_Mgr.getResourcePath(m_TextureGuid, L"Texture");
             if (!std::filesystem::exists(Path)) return;
-            m_TextureInfo.Load(Path, true);
+            // the texture file v2 (xtexture_file: the resource file and its ".1"), not a plain xbitmap stream - read as one, the size of its
+            // part 0 struct did not match xbitmap's and bitmap_info::Load asserted and exited the editor. As the texture editor's preview reads it.
+            m_bTextureInfo = true;                                              // tried: read again when the texture's file changes
+            m_TextureInfo.clear();
+            auto pFile = std::make_unique<xtexture_file::loaded>();
+            if (auto Err = xtexture_file::Load(Path, Path + L".1", *pFile); Err)
+            {
+                std::printf("Font editor: could not read the atlas texture %s: %s\n", xstrtool::To(Path).c_str(), Err.getMessage().data());
+                m_pTextureFile.reset();
+                return;
+            }
+            std::error_code Ec;
+            const std::size_t Part0 = std::filesystem::file_size(Path, Ec);
+            const std::size_t Part1 = [&] { std::error_code E1; const auto S = std::filesystem::file_size(Path + L".1", E1); return E1 ? std::size_t{0} : static_cast<std::size_t>(S); }();
+            m_pTextureFile = std::move(pFile);
+            const auto Encoding = m_pTextureFile->m_Encoding;
+            m_TextureInfo.Borrow(Path, m_pTextureFile->m_Bitmap, (Ec ? 0 : Part0) + Part1);
+            m_TextureInfo.m_RscTexture.m_Instance.m_Value = m_TextureGuid.m_Instance.m_Value;
+            m_TextureInfo.m_StoredEncoding = Encoding == xtexture_file::stored_encoding::UASTC ? "UASTC" : Encoding == xtexture_file::stored_encoding::ETC1S ? "ETC1S"
+                                           : Encoding == xtexture_file::stored_encoding::UASTC_HDR ? "UASTC_HDR" : "NATIVE";
+            m_TextureInfo.m_Part0Size = Ec ? 0 : Part0; m_TextureInfo.m_Part1Size = Part1;
             m_TextureInspector.BindObject(*xproperty::getObject(m_TextureInfo), &m_TextureInfo);
-            m_bTextureInfo = true;
         }
 
         // Every output type has an atlas of its own (a different guid), and Reload runs before the font is loaded: the loaded font is the one that knows which atlas it uses.
